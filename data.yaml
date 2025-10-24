@@ -1,0 +1,18 @@
+path: C:/Users/lab/softwareteam/dataset/
+
+test: test/images
+train: train/images
+val: valid/images
+
+nc: 5
+
+names:
+  0: car
+  1: tree
+  2: building
+  3: person
+  4: other
+
+roboflow:
+  url: https://universe.roboflow.com/tylervisimoai/drone-crash-avoidance/
+
