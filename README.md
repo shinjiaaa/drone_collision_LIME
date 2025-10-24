@@ -6,4 +6,4 @@
 - video dataset: https://github.com/VisDrone/VisDrone-Dataset
 
 ## model route
-- 
+- runs/detect/exp/weights/best.pt
