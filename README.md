@@ -3,7 +3,7 @@
 
 ## dataset
 - image dataset: https://universe.roboflow.com/tylervisimoai/drone-crash-avoidance
-- video dataset: https://github.com/VisDrone/VisDrone-Dataset task 2
+- video dataset: https://github.com/VisDrone/VisDrone-Dataset
 
 ## model route
 - runs/detect/exp/weights/best.pt
