@@ -13,6 +13,9 @@ names:
   3: person
   4: other
 
+ultraylytics:
+  url: https://docs.ultralytics.com/ko/datasets/detect/visdrone/
+  
 roboflow:
   url: https://universe.roboflow.com/tylervisimoai/drone-crash-avoidance/
 
