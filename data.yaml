@@ -1,4 +1,4 @@
-path: C:/Users/lab/softwareteam/dataset/
+path: C:/Users/lab/drone_cillision_LIME/dataset/
 
 test: test/images
 train: train/images
