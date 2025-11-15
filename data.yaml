@@ -1,21 +1,13 @@
-path: C:/Users/lab/drone_cillision_LIME/dataset/
+path: C:/Users/lab/drone_collision_LIME/collision_dataset/
 
-test: test/images
-train: train/images
-val: valid/images
+test: testing
+train: training
+val: validation
 
-nc: 5
+nc: 4
 
 names:
   0: car
   1: tree
-  2: building
-  3: person
-  4: other
-
-ultraylytics:
-  url: https://docs.ultralytics.com/ko/datasets/detect/visdrone/
-  
-roboflow:
-  url: https://universe.roboflow.com/tylervisimoai/drone-crash-avoidance/
-
+  2: person
+  3: other``

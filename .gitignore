@@ -1,7 +1,7 @@
 .env
 
-dataset/
-runs/
-VisDrone/
+collision_dataset/testing
+collision_dataset/training
+collision_dataset/validation
 
-*.pt
+datasets/

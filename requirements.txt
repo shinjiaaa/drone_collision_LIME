@@ -1,0 +1,20 @@
+# === Core Server & API ===
+fastapi
+uvicorn[standard]     # 비동기 서버 실행 (websockets, httptools 포함)
+
+# === AI / Machine Learning ===
+ultralytics           # YOLO 모델 (탐지, 학습, 평가)
+lime                  # LIME (XAI)
+scikit-image          # LIME의 SLIC 세그멘테이션에 필요
+numpy                 # 이미지 및 데이터 처리
+opencv-python-headless  # 서버 환경용 OpenCV (GUI 불필요)
+Pillow                # 이미지 처리 (data.py에서 사용)
+
+# === Hardware Control ===
+djitellopy            # Tello 드론 제어
+
+# === MLOps / Evaluation (Offline Scripts) ===
+wandb                 # 실험 관리 및 로깅 (eval.py)
+weave                 # W&B Weave 리포팅 (eval.py)
+openai                # GPT 리포트 생성 (eval.py)
+python-dotenv         # .env 파일 로드 (eval.py)
