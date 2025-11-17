@@ -1,11 +1,8 @@
-# drone_manager.py
 import time
 import threading
 import cv2
 import numpy as np
 from typing import Optional, Dict, Any, Callable
-
-# djitellopy 임포트 시도
 try:
     from djitellopy import Tello
 
@@ -15,9 +12,7 @@ except ImportError:
     TELLO_AVAILABLE = False
     print("[Manager] djitellopy not found. Tello control disabled.")
 
-# detector.py 파일에서 CollisionDetectorLIME 임포트
 try:
-    # detector.py는 이전과 동일합니다.
     from detector import CollisionDetectorLIME
 except ImportError as e:
     print(f"[ERROR] detector.py를 찾을 수 없습니다. {e}")
@@ -50,10 +45,8 @@ class DroneManager:
         self.lock = threading.Lock()
         self.stop_event = threading.Event()
 
-        # [수정됨] 텔레메트리 데이터 저장소 (콜백 방식 제거)
         self.latest_telemetry: Dict[str, Any] = self._generate_telemetry_snapshot(None)
 
-    # (connect, _connect_tello, _connect_webcam, shutdown 함수는 이전과 동일하므로 생략)
     def connect(self):
         if self.is_connected:
             return True
@@ -132,7 +125,7 @@ class DroneManager:
         self.is_connected = False
         print("[Manager] Shutdown complete.")
 
-    # --- 메인 처리 루프 ---
+    # 메인 루프
     def _main_loop(self):
         last_battery_check = time.time()
         while not self.stop_event.is_set():
@@ -150,13 +143,12 @@ class DroneManager:
                 # 2. AI 처리 (YOLO + LIME)
                 processed_frame, risk_data = self.detector.process_frame(frame_bgr)
 
-                # 3. 최신 데이터 저장 (Thread-safe)
+                # 3. 최신 데이터 저장
                 with self.lock:
                     self.latest_processed_data["frame"] = processed_frame
                     self.latest_processed_data["risk"] = risk_data
 
-                # 4. 텔레메트리 데이터 내부 상태 업데이트
-                # 배터리 체크 (10초 간격)
+                # 4. 텔레메트리 데이터 내부 상태 업데이트 & 배터리 체크
                 now = time.time()
                 if self.tello and not self.use_webcam and now - last_battery_check > 10:
                     try:
@@ -165,7 +157,7 @@ class DroneManager:
                     except:
                         pass
 
-                # [수정됨] 콜백 호출 대신 내부 상태 업데이트
+                # 내부 상태 업데이트
                 self._update_telemetry_state(risk_data)
 
             except Exception as e:
@@ -173,7 +165,6 @@ class DroneManager:
                 time.sleep(0.1)
 
     def _get_frame(self) -> Optional[np.ndarray]:
-        # (이전과 동일)
         frame = None
         try:
             if self.tello and not self.use_webcam:
@@ -195,11 +186,9 @@ class DroneManager:
                 frame = cv2.resize(frame, (self.FRAME_WIDTH, self.FRAME_HEIGHT))
         return frame
 
-    # [신규/수정됨] 텔레메트리 데이터 관리 함수들
     def _generate_telemetry_snapshot(self, risk_data: Optional[Dict[str, Any]]):
-        """텔레메트리 데이터 구조 생성 헬퍼."""
         if risk_data is None:
-            # 초기 상태 또는 데이터 누락 시 안전 상태로 설정
+            # 초기 상태 & 데이터 누락 시 안전 상태 반환
             risk_data = self.detector._evaluate_risk(0.0)
 
         return {
@@ -210,25 +199,24 @@ class DroneManager:
             "risk": risk_data,
         }
 
+    # 내부 상태 업데이트
     def _update_telemetry_state(self, risk_data: Dict[str, Any]):
-        """내부 텔레메트리 상태를 안전하게 업데이트합니다."""
         telemetry = self._generate_telemetry_snapshot(risk_data)
         with self.lock:
             self.latest_telemetry = telemetry
 
+    # app.py에서 데이터를 가져가기 위한 인터페이스
     def get_latest_telemetry(self) -> Dict[str, Any]:
-        """[신규] app.py에서 데이터를 가져가기 위한 인터페이스 (Thread-safe)."""
         with self.lock:
             return self.latest_telemetry.copy()
 
-    # --- 외부 인터페이스 (API용) ---
+    # 외부 인터페이스 - API
     def get_latest_frame(self) -> Optional[np.ndarray]:
         """최신 처리된 프레임을 반환합니다 (Thread-safe)."""
         with self.lock:
             return self.latest_processed_data["frame"]
 
     def send_command(self, command: str, data: Optional[Dict[str, Any]] = None):
-        # (이전과 동일)
         if self.use_webcam:
             return
         if not self.tello:
@@ -248,12 +236,8 @@ class DroneManager:
         except Exception as e:
             print(f"[Manager] Failed to send command '{command}': {e}")
 
-
-# 싱글톤 인스턴스 초기화
 try:
     initial_detector = CollisionDetectorLIME(weights_path=None)
-    # 중요: 실제 드론 사용 시 use_webcam=False로 설정
-    # 테스트를 위해 웹캠을 사용하려면 True로 변경하세요.
     drone_manager = DroneManager(detector=initial_detector, use_webcam=False)
 except Exception as e:
     print(f"[System Init Error] Failed to initialize Detector or Manager: {e}")
