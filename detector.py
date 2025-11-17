@@ -13,7 +13,7 @@ CLASS_HEIGHTS = {0: 1.5, 1: 5.0, 2: 10.0, 3: 1.7, 4: 0.5}
 FOCAL_LENGTH_PIXELS = 1400
 
 # 모델 경로
-DEFAULT_YOLO = "YOLO-Continued/train_balance_finetune_v2/weights/best.pt"  # 객체 탐지 모델
+DEFAULT_YOLO = "YOLO-Continued/train_balance_finetune_v3/weights/best.pt"  # 객체 탐지 모델
 DEFAULT_COLLISION = "collision_dataset/model/test_2/model_weights.h5"  # 충돌 분류 모델
 
 
@@ -104,7 +104,6 @@ def _blend_single(
 def blend_dual_mask_sequential(
     frame_bgr: np.ndarray,
     pos_mask01: np.ndarray,
-    neg_mask01: np.ndarray,
     alpha: float = 0.65,
 ) -> np.ndarray:
     h, w = frame_bgr.shape[:2]
@@ -146,7 +145,6 @@ def lime_mask_on_roi_weighted(
     class_id: int,
     num_samples: int,
     n_segments=70,
-    num_features=2,
     compactness=10.0,
 ) -> Tuple[np.ndarray, np.ndarray]:
     roi_rgb = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2RGB)
@@ -163,7 +161,7 @@ def lime_mask_on_roi_weighted(
         explanation = explainer.explain_instance(
             roi_rgb,
             classifier_fn=predict_fn,
-            top_labels=1,
+            top_labels=[1],
             hide_color=0,
             num_samples=num_samples,
             segmentation_fn=segmenter,
@@ -316,20 +314,15 @@ class CollisionDetectorLIME:
                     continue
                 roi = job_frame[y1:y2, x1:x2]
                 try:
-                    roi_small = cv2.resize(
-                        roi,
-                        (cfg["roi_shrink"], cfg["roi_shrink"]),
-                        interpolation=cv2.INTER_AREA,
-                    )
+                    roi_small = roi
                 except cv2.error:
                     continue
 
-                m_small_pos, m_small_neg = lime_mask_on_roi_weighted(
+                m_small_pos = lime_mask_on_roi_weighted(
                     roi_small,
                     self.yolo,
                     cls,
                     num_samples=cfg["lime_samples"],
-                    num_features=3,
                 )
 
                 m_roi_pos = cv2.resize(
