@@ -2,15 +2,16 @@
 2025 KSC - Application of the LIME Technique for Real-Time Drone Collision Risk Prediction
 
 ## dataset
-객체 탐지 모델
-- https://universe.roboflow.com/tylervisimoai/drone-crash-avoidance
-- https://github.com/VisDrone/VisDrone-Dataset
-충돌 분류 모델
-- https://github.com/uzh-rpg/rpg_public_dronet
+- 객체 탐지 모델
+1. https://universe.roboflow.com/tylervisimoai/drone-crash-avoidance
+2. https://github.com/VisDrone/VisDrone-Dataset
+
+- 충돌 분류 모델
+1. https://github.com/uzh-rpg/rpg_public_dronet
 
 ## model route
-객체 탐지 모델: models/best.pt
-충돌 분류 모델: models/model_weights.h5
+- 객체 탐지 모델: models/best.pt
+- 충돌 분류 모델: models/model_weights.h5
 
 ## Directory
 static/
