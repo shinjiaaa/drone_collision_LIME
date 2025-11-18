@@ -1,8 +1,8 @@
-# main.py
 import io
 import os
 import tempfile
 import asyncio
+import json
 from typing import List
 
 from fastapi import FastAPI, File, UploadFile, Request
@@ -18,23 +18,24 @@ import cv2
 import numpy as np
 import uvicorn
 import aiofiles
+import base64
 
 # ----------------------------
 # LIME 자연어 생성 함수 import
 # ----------------------------
-from system.lime_explainer import generate_lime_explanation
+from system.explainer import generate_lime_explanation
 
 # ----------------------------
 # Detector
 # ----------------------------
-from system.static_detector import CollisionDetectorLIME
+from system.static_detector import StaticCollisionDetectorLIME
 
 app = FastAPI(title="LIME Collision Detector - Upload Demo")
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 os.makedirs(STATIC_DIR, exist_ok=True)
 
-detector = CollisionDetectorLIME()
+detector = StaticCollisionDetectorLIME()
 
 
 # ★ 이미지 파일 → numpy BGR
@@ -46,59 +47,66 @@ def read_imagefile_to_bgr(data: bytes):
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    return HTMLResponse("<h3>Upload Endpoint Ready</h3>")
+    return HTMLResponse(
+        """
+    <h3>Upload Image</h3>
+    <form action="/process/image" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required>
+        <button type="submit">Upload</button>
+    </form>
+    """
+    )
 
 
 # ----------------------------------------------------
 #  이미지 업로드 처리 + LIME 자연어 설명 결합
 # ----------------------------------------------------
+import base64
+import json
+from fastapi.responses import HTMLResponse
+
+
 @app.post("/process/image")
 async def process_image(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
-        return JSONResponse({"error": "image 파일이 필요함"}, status_code=400)
-
     data = await file.read()
     img = read_imagefile_to_bgr(data)
     if img is None:
-        return JSONResponse({"error": "이미지 디코딩 실패"}, status_code=400)
+        return HTMLResponse("<p>이미지 디코딩 실패</p>", status_code=400)
 
-    # detector.process_frame → (처리된이미지, info)
     processed, info = detector.process_frame(img)
 
-    # ---------------------------------------------
-    #   info 내부 구조 예시 (네 구조 그대로 사용)
-    #   info = {
-    #       "pos_mask": np.ndarray,
-    #       "neg_mask": np.ndarray,
-    #       "class_name": str,
-    #       "collision_prob": float
-    #   }
-    # ---------------------------------------------
+    # info에서 LIME 관련 값 가져오기
+    pos_mask = info.get("pos_mask")
+    neg_mask = info.get("neg_mask")
+    class_name = info.get("class_name", "unknown")
+    collision_prob = info.get("collision_prob", 0.0)
 
-    # LIME 설명 생성 실행 🔥
     explanation = generate_lime_explanation(
-        pos_mask=info["pos_mask"],
-        neg_mask=info["neg_mask"],
-        class_name=info["class_name"],
-        collision_prob=info["collision_prob"],
+        pos_mask=pos_mask,
+        neg_mask=neg_mask,
+        class_name=class_name,
+        collision_prob=collision_prob,
     )
 
-    # 이미지 JPEG 인코딩
     ok, encoded = cv2.imencode(".jpg", processed)
     if not ok:
-        return JSONResponse({"error": "이미지 인코딩 실패"}, status_code=500)
+        return HTMLResponse("<p>이미지 인코딩 실패</p>", status_code=500)
 
-    # 클라이언트가 JSON + 이미지 둘 다 필요하면?
-    # → multipart response 사용
-    return StreamingResponse(
-        io.BytesIO(encoded.tobytes()),
-        media_type="image/jpeg",
-        headers={"X-LIME-Explanation": json.dumps(explanation, ensure_ascii=False)},
-    )
+    img_base64 = base64.b64encode(encoded.tobytes()).decode("utf-8")
+    explanation_text = json.dumps(explanation, ensure_ascii=False, indent=2)
+
+    html_content = f"""
+    <h3>Processed Image</h3>
+    <img src="data:image/jpeg;base64,{img_base64}" />
+    <h3>LIME Explanation</h3>
+    <pre>{explanation_text}</pre>
+    <a href="/">Back</a>
+    """
+    return HTMLResponse(html_content)
 
 
 # ----------------------------------------------------
-#  비디오 업로드 처리 (LIME 설명은 프레임마다 생성 X)
+#  비디오 업로드 처리
 # ----------------------------------------------------
 @app.post("/process/video")
 async def process_video(file: UploadFile = File(...)):
