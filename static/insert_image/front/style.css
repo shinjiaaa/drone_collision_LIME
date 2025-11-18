@@ -1,0 +1,23 @@
+body {
+    background: #111;
+    color: white;
+    font-family: Arial;
+    text-align: center;
+}
+
+.container {
+    margin-top: 30px;
+}
+
+.preview {
+    width: 320px;
+    border: 2px solid #444;
+    margin-top: 10px;
+}
+
+.result-section {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 20px;
+}

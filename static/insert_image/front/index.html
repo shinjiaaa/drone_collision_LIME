@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Drone Image Analyzer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+
+    <h1>드론 이미지 위험 분석</h1>
+
+    <input type="file" id="imgInput">
+    <button id="analyzeBtn">분석 시작</button>
+
+    <div class="result-section">
+        <div>
+            <h2>원본 이미지</h2>
+            <img id="orig" class="preview">
+        </div>
+
+        <div>
+            <h2>LIME 근거 영역</h2>
+            <img id="lime" class="preview">
+        </div>
+    </div>
+
+    <h2>충돌 위험도</h2>
+    <p id="riskText">---</p>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

@@ -15,7 +15,7 @@ import uvicorn
 import aiofiles
 
 # detector.py에 네가 준 CollisionDetectorLIME 클래스가 있다고 가정
-from detector import CollisionDetectorLIME
+from system.detector import CollisionDetectorLIME
 
 app = FastAPI(title="LIME Collision Detector - Upload Demo")
 
