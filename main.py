@@ -6,7 +6,12 @@ import asyncio
 from typing import List
 
 from fastapi import FastAPI, File, UploadFile, Request
-from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse, JSONResponse
+from fastapi.responses import (
+    HTMLResponse,
+    StreamingResponse,
+    FileResponse,
+    JSONResponse,
+)
 from fastapi.staticfiles import StaticFiles
 
 import cv2
@@ -15,7 +20,7 @@ import uvicorn
 import aiofiles
 
 # detector.py에 네가 준 CollisionDetectorLIME 클래스가 있다고 가정
-from detector import CollisionDetectorLIME
+from system.detector import CollisionDetectorLIME
 
 app = FastAPI(title="LIME Collision Detector - Upload Demo")
 
@@ -113,9 +118,11 @@ async function upload(kind){
 </html>
 """
 
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
     return HTMLResponse(INDEX_HTML)
+
 
 # Helper: read image bytes to BGR numpy
 def read_imagefile_to_bgr(data: bytes):
@@ -123,15 +130,16 @@ def read_imagefile_to_bgr(data: bytes):
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     return img
 
+
 # 이미지 업로드 처리: 단일 이미지 반환 (JPEG)
 @app.post("/process/image")
 async def process_image(file: UploadFile = File(...)):
     if not file.content_type.startswith("image/"):
-        return JSONResponse({"error":"image 파일이 필요함"}, status_code=400)
+        return JSONResponse({"error": "image 파일이 필요함"}, status_code=400)
     data = await file.read()
     img = read_imagefile_to_bgr(data)
     if img is None:
-        return JSONResponse({"error":"이미지 디코딩 실패"}, status_code=400)
+        return JSONResponse({"error": "이미지 디코딩 실패"}, status_code=400)
 
     # 처리 (동기 함수라서 CPU-bound; 짧은 처리에선 ok)
     processed, info = detector.process_frame(img)
@@ -139,22 +147,25 @@ async def process_image(file: UploadFile = File(...)):
     # encode to JPEG
     ok, encoded = cv2.imencode(".jpg", processed)
     if not ok:
-        return JSONResponse({"error":"인코딩 실패"}, status_code=500)
+        return JSONResponse({"error": "인코딩 실패"}, status_code=500)
     return StreamingResponse(io.BytesIO(encoded.tobytes()), media_type="image/jpeg")
+
 
 # 비디오 업로드 처리: MP4 반환 (프레임 단위로 detector.process_frame)
 @app.post("/process/video")
 async def process_video(file: UploadFile = File(...)):
     if not file.content_type.startswith("video/"):
-        return JSONResponse({"error":"video 파일이 필요함"}, status_code=400)
+        return JSONResponse({"error": "video 파일이 필요함"}, status_code=400)
 
     # 임시 파일로 저장
-    tmp_fd, tmp_path = tempfile.mkstemp(suffix=os.path.splitext(file.filename)[1] or ".mp4")
+    tmp_fd, tmp_path = tempfile.mkstemp(
+        suffix=os.path.splitext(file.filename)[1] or ".mp4"
+    )
     os.close(tmp_fd)
     try:
         async with aiofiles.open(tmp_path, "wb") as out:
             while True:
-                chunk = await file.read(1024*1024)
+                chunk = await file.read(1024 * 1024)
                 if not chunk:
                     break
                 await out.write(chunk)
@@ -162,7 +173,7 @@ async def process_video(file: UploadFile = File(...)):
         # 비디오 읽기
         cap = cv2.VideoCapture(tmp_path)
         if not cap.isOpened():
-            return JSONResponse({"error":"비디오 열기 실패"}, status_code=400)
+            return JSONResponse({"error": "비디오 열기 실패"}, status_code=400)
 
         # 출력 설정 (same size as input, mp4v)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -194,6 +205,7 @@ async def process_video(file: UploadFile = File(...)):
                 os.remove(tmp_path)
         except Exception:
             pass
+
 
 if __name__ == "__main__":
     # 디버그용 로컬 실행: python app.py
