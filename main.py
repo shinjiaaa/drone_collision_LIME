@@ -22,12 +22,12 @@ import aiofiles
 # ----------------------------
 # LIME 자연어 생성 함수 import
 # ----------------------------
-from system.lime_explainer import generate_lime_explanation
+from explainer import generate_lime_explanation
 
 # ----------------------------
 # Detector
 # ----------------------------
-from system.static_detector import CollisionDetectorLIME
+from static_detector import CollisionDetectorLIME
 
 app = FastAPI(title="LIME Collision Detector - Upload Demo")
 

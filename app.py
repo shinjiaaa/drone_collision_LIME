@@ -109,11 +109,11 @@ async def broadcast_telemetry_loop():
 async def get():
     # (이전과 동일)
     try:
-        with open("static/index.html", encoding='utf-8') as f:
+        with open("static/app/front/index.html", encoding='utf-8') as f:
             html = f.read()
         return HTMLResponse(html)
     except FileNotFoundError:
-        return HTMLResponse("<h1>Error: static/index.html not found</h1>", status_code=404)
+        return HTMLResponse("<h1>Error: static/app/front/index.html not found</h1>", status_code=404)
 
 # MJPEG 스트리밍 구현
 async def generate_mjpeg_stream():
@@ -127,6 +127,53 @@ async def generate_mjpeg_stream():
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         await asyncio.sleep(0.033)
+
+from fastapi import UploadFile, File
+from fastapi.responses import StreamingResponse
+from detector import CollisionDetectorLIME
+detector = drone_manager.detector
+
+import numpy as np
+
+@app.post("/upload_image")
+async def upload_image(file: UploadFile = File(...)):
+    """YOLO + Collision + LIME 전체 파이프라인을 이미지 업로드에도 동일하게 적용"""
+
+    # 파일 확장자 체크
+    if not file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
+        return {"error": "Only PNG, JPG images are allowed."}
+
+    # 파일 읽기
+    file_bytes = await file.read()
+
+    # OpenCV 디코드
+    np_arr = np.frombuffer(file_bytes, np.uint8)
+    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+    if img is None:
+        return {"error": "Invalid image format."}
+
+    # -------------------------------
+    # ✔ 핵심: 실시간 프레임과 동일 파이프라인 적용
+    # -------------------------------
+    output_frame, risk_data = detector.process_frame(img)
+
+    # JPEG로 재인코딩
+    ok, buffer = cv2.imencode(".jpg", output_frame)
+    if not ok:
+        return {"error": "Failed to process image."}
+
+    processed_bytes = buffer.tobytes()
+
+    return StreamingResponse(
+        iter([processed_bytes]),
+        media_type="image/jpeg",
+        headers={
+            "X-Risk-Level": risk_data["level"],
+            "X-Risk-Percent": str(risk_data["max_conf"])
+        }
+    )
+
 
 @app.get("/video_feed")
 async def video_feed():

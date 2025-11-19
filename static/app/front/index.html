@@ -10,7 +10,10 @@
 <body class="bg-dark text-white d-flex flex-column min-vh-100" tabindex="0">
     
     <div class="container-fluid flex-grow-1 d-flex flex-column align-items-center justify-content-center p-3">
-
+        <form action="/upload_image" enctype="multipart/form-data" method="post">
+            <input name="file" type="file" />
+            <button type="submit">Upload Image</button>
+        </form>
         <div class="alert alert-warning text-center mb-3" id="focusWarning" style="display: none; max-width: 960px;">
             ⚠️ 키보드 제어(WASD/화살표, T:이륙, L:착륙) 및 경고음 활성화를 위해 화면을 클릭하세요.
         </div>

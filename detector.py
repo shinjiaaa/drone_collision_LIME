@@ -6,7 +6,7 @@ from ultralytics import YOLO
 from lime import lime_image
 from skimage.segmentation import slic
 from tensorflow.keras.models import load_model
-from system.explainer import generate_lime_explanation
+from explainer import generate_lime_explanation
 
 # 카메라 캘리브레이션 설정
 CLASS_HEIGHTS = {0: 1.5, 1: 5.0, 2: 10.0, 3: 1.7, 4: 0.5}
