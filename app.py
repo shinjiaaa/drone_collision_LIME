@@ -129,50 +129,55 @@ async def generate_mjpeg_stream():
         await asyncio.sleep(0.033)
 
 from fastapi import UploadFile, File
-from fastapi.responses import StreamingResponse
-from detector import CollisionDetectorLIME
-detector = drone_manager.detector
-
+from fastapi.responses import JSONResponse
+import base64
 import numpy as np
+import cv2
 
+
+detector = drone_manager.detector
 @app.post("/upload_image")
 async def upload_image(file: UploadFile = File(...)):
-    """YOLO + Collision + LIME 전체 파이프라인을 이미지 업로드에도 동일하게 적용"""
+    """YOLO + Collision + LIME 파이프라인 → base64로 반환"""
 
-    # 파일 확장자 체크
-    if not file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
+    if not file.filename.lower().endswith(("png", "jpg", "jpeg")):
         return {"error": "Only PNG, JPG images are allowed."}
 
-    # 파일 읽기
+    # 이미지 읽기
     file_bytes = await file.read()
-
-    # OpenCV 디코드
     np_arr = np.frombuffer(file_bytes, np.uint8)
     img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
     if img is None:
         return {"error": "Invalid image format."}
 
-    # -------------------------------
-    # ✔ 핵심: 실시간 프레임과 동일 파이프라인 적용
-    # -------------------------------
+    # YOLO + Collision + LIME 전체 처리
     output_frame, risk_data = detector.process_frame(img)
 
-    # JPEG로 재인코딩
+    # output_frame → base64 JPG
     ok, buffer = cv2.imencode(".jpg", output_frame)
     if not ok:
-        return {"error": "Failed to process image."}
+        return {"error": "Failed to process final frame."}
+    result_b64 = base64.b64encode(buffer).decode()
 
-    processed_bytes = buffer.tobytes()
+    # ------------------------------------------
+    # 🔥 여기 추가됨: latest_lime_mask_img 변환
+    # ------------------------------------------
+    lime_mask_img = detector.latest_lime_mask_img  # ← 이름 맞춰 반영
 
-    return StreamingResponse(
-        iter([processed_bytes]),
-        media_type="image/jpeg",
-        headers={
-            "X-Risk-Level": risk_data["level"],
-            "X-Risk-Percent": str(risk_data["max_conf"])
-        }
-    )
+    if lime_mask_img is not None:
+        ok2, limbuf = cv2.imencode(".jpg", lime_mask_img)
+        lime_mask_base64 = base64.b64encode(limbuf).decode() if ok2 else None
+    else:
+        lime_mask_base64 = None
+    # ------------------------------------------
+
+    return JSONResponse({
+        "result_img": f"data:image/jpeg;base64,{result_b64}",
+        "lime_mask_img": f"data:image/jpeg;base64,{lime_mask_base64}" if lime_mask_base64 else None,
+        "risk_level": risk_data.get("level"),
+        "max_conf": risk_data.get("max_conf")
+    })
 
 
 @app.get("/video_feed")
