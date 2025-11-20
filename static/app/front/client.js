@@ -281,3 +281,30 @@ document.addEventListener('DOMContentLoaded', (event) => {
         handleBlur();
     }
 });
+
+// 업로드 이미지 결과 표시
+document.querySelector('form').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch('/upload_image', {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        console.log("[UPLOAD DEBUG]", data);
+
+        // 결과 이미지 표시
+        if (data.result_img) {
+            document.getElementById('uploaded-result').src = data.result_img;
+        }
+
+        // LIME 마스크 표시
+        if (data.lime_mask) {
+            document.getElementById('uploaded-lime').src = data.lime_mask;
+        }
+    })
+    .catch(err => console.error(err));
+});

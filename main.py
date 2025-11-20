@@ -2,45 +2,33 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse
 import cv2
 import numpy as np
-from io import BytesIO
-from PIL import Image
-from ultralytics import YOLO
-from tensorflow.keras.models import load_model
-from lime import lime_image
-from skimage.segmentation import mark_boundaries
-import matplotlib.pyplot as plt
-from plyer import notification
+import uvicorn
+import aiofiles
+import base64
 
-app = FastAPI()
+# ----------------------------
+# LIME 자연어 생성 함수 import
+# ----------------------------
+from explainer import generate_lime_explanation
 
-# === YOLO 모델 로드 ===
-yolo_model = YOLO("models/best.pt")
+# ----------------------------
+# Detector
+# ----------------------------
+from static_detector import CollisionDetectorLIME
 
-# === Keras 충돌 분류 모델 로드 ===
-collision_model = load_model("models/model_weights.h5")
+app = FastAPI(title="LIME Collision Detector - Upload Demo")
 
-# === 모델이 기대하는 입력 크기 확인 ===
-input_height, input_width = collision_model.input_shape[1:3]
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+os.makedirs(STATIC_DIR, exist_ok=True)
 
-
-# === 이미지 전처리 함수 ===
-def preprocess_for_collision_model(img, bbox):
-    x1, y1, x2, y2 = map(int, bbox)
-    crop = img[y1:y2, x1:x2]
-    crop = cv2.resize(crop, (input_width, input_height))  # 모델 입력 크기에 맞춤
-    crop = crop.astype(np.float32) / 255.0
-    crop = np.expand_dims(crop, axis=0)
-    return crop
+detector = StaticCollisionDetectorLIME()
 
 
-# === LIME 예측 함수 ===
-def predict_for_lime(images):
-    results = []
-    for img in images:
-        img_input = np.expand_dims(img.astype(np.float32) / 255.0, axis=0)
-        prob = collision_model.predict(img_input, verbose=0)[0][0]
-        results.append([prob, 1 - prob])
-    return np.array(results)
+# ★ 이미지 파일 → numpy BGR
+def read_imagefile_to_bgr(data: bytes):
+    arr = np.frombuffer(data, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    return img
 
 
 # === 업로드 페이지 ===
