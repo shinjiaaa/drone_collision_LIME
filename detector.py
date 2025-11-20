@@ -13,7 +13,7 @@ CLASS_HEIGHTS = {0: 1.5, 1: 5.0, 2: 10.0, 3: 1.7, 4: 0.5}
 FOCAL_LENGTH_PIXELS = 1400
 
 # 모델 경로
-DEFAULT_YOLO = "models/best.pt"  # 객체 탐지 모델
+DEFAULT_YOLO = "yolo11n.pt"  # 객체 탐지 모델
 DEFAULT_COLLISION = "models/model_weights.h5"  # 충돌 분류 모델
 
 
@@ -503,7 +503,13 @@ class CollisionDetectorLIME:
             except Exception as e:
                 print(f"[LIME-EXPLANATION ERROR] {e}")
 
-        return processed_frame, risk_data
+        # pos_mask 복사해서 반환
+        with self.data_lock:
+            pos_mask_for_ui = (
+                self.last_mask_pos.copy() if self.last_mask_pos is not None else None
+            )
+
+        return processed_frame, risk_data, pos_mask_for_ui
 
     def _calculate_fps(self):
         self.cnt += 1

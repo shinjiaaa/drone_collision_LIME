@@ -1,4 +1,8 @@
 # app.py
+import sys
+import os
+
+sys.path.append(os.path.join(os.path.dirname(__file__)))
 import asyncio
 import uvicorn
 import cv2
@@ -11,10 +15,11 @@ from typing import Dict, Any
 
 # drone_manager.py에서 싱글톤 인스턴스 임포트
 try:
-    from drone_manager import drone_manager
+    from system.drone_manager import drone_manager
 except ImportError as e:
     print(f"[ERROR] drone_manager.py 또는 detector.py를 찾을 수 없습니다. {e}")
     exit()
+
 
 # --- 서버 시작/종료 시점 관리 (Lifespan) ---
 @asynccontextmanager
@@ -35,12 +40,14 @@ async def lifespan(app: FastAPI):
         pass
     drone_manager.shutdown()
 
+
 async def connect_drone_async():
     """비동기로 드론 연결을 시도합니다."""
     loop = asyncio.get_running_loop()
     success = await loop.run_in_executor(None, drone_manager.connect)
     if not success:
         print("[Server] Failed to connect to Drone/Webcam.")
+
 
 app = FastAPI(lifespan=lifespan)
 
@@ -49,6 +56,7 @@ try:
     app.mount("/static", StaticFiles(directory="static"), name="static")
 except RuntimeError:
     print("[WARN] 'static' directory not found.")
+
 
 # --- 웹소켓 연결 관리 ---
 class ConnectionManager:
@@ -66,7 +74,7 @@ class ConnectionManager:
     async def broadcast(self, message: Dict[str, Any]):
         # 데이터 직렬화는 한 번만 수행
         message_str = json.dumps(message)
-        
+
         # 연결이 끊어진 클라이언트를 대비하여 안전하게 순회
         connections_to_remove = []
         for connection in self.active_connections:
@@ -74,11 +82,13 @@ class ConnectionManager:
                 await connection.send_text(message_str)
             except Exception:
                 connections_to_remove.append(connection)
-        
+
         for connection in connections_to_remove:
             self.disconnect(connection)
 
+
 manager = ConnectionManager()
+
 
 # [신규] 텔레메트리 전송 루프 (Pull 방식)
 async def broadcast_telemetry_loop():
@@ -90,7 +100,7 @@ async def broadcast_telemetry_loop():
             telemetry_data = drone_manager.get_latest_telemetry()
             # 모든 클라이언트에게 전송
             await manager.broadcast(telemetry_data)
-            
+
             # 전송 주기 설정 (10Hz = 0.1초)
             await asyncio.sleep(0.1)
         except asyncio.CancelledError:
@@ -100,20 +110,25 @@ async def broadcast_telemetry_loop():
             print(f"[Server] Error in telemetry loop: {e}")
             await asyncio.sleep(1.0)
 
+
 # (이전 버전의 telemetry_callback 함수 및 할당 코드는 제거됨)
 
 
 # --- API 엔드포인트 ---
 
+
 @app.get("/")
 async def get():
     # (이전과 동일)
     try:
-        with open("static/index.html", encoding='utf-8') as f:
+        with open("static/index.html", encoding="utf-8") as f:
             html = f.read()
         return HTMLResponse(html)
     except FileNotFoundError:
-        return HTMLResponse("<h1>Error: static/index.html not found</h1>", status_code=404)
+        return HTMLResponse(
+            "<h1>Error: static/index.html not found</h1>", status_code=404
+        )
+
 
 # MJPEG 스트리밍 구현
 async def generate_mjpeg_stream():
@@ -121,17 +136,24 @@ async def generate_mjpeg_stream():
     while True:
         frame = drone_manager.get_latest_frame()
         if frame is not None:
-            ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+            ret, buffer = cv2.imencode(
+                ".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+            )
             if ret:
                 frame_bytes = buffer.tobytes()
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                yield (
+                    b"--frame\r\n"
+                    b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                )
         await asyncio.sleep(0.033)
+
 
 @app.get("/video_feed")
 async def video_feed():
-    return StreamingResponse(generate_mjpeg_stream(),
-                             media_type="multipart/x-mixed-replace; boundary=frame")
+    return StreamingResponse(
+        generate_mjpeg_stream(), media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
 
 @app.websocket("/ws/data")
 async def websocket_endpoint(websocket: WebSocket):
@@ -156,7 +178,7 @@ async def websocket_endpoint(websocket: WebSocket):
 async def handle_message(message: Dict[str, Any]):
     """클라이언트로부터 수신된 메시지 처리 (제어 명령)."""
     msg_type = message.get("type")
-    
+
     if msg_type == "control_command":
         command = message.get("command")
         data = message.get("data")
@@ -164,6 +186,7 @@ async def handle_message(message: Dict[str, Any]):
             # 블로킹 I/O인 send_command를 별도 스레드에서 실행
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, drone_manager.send_command, command, data)
+
 
 if __name__ == "__main__":
     # 서버 실행

@@ -3,6 +3,7 @@ import threading
 import cv2
 import numpy as np
 from typing import Optional, Dict, Any, Callable
+
 try:
     from djitellopy import Tello
 
@@ -236,9 +237,10 @@ class DroneManager:
         except Exception as e:
             print(f"[Manager] Failed to send command '{command}': {e}")
 
+
 try:
     initial_detector = CollisionDetectorLIME(weights_path=None)
-    drone_manager = DroneManager(detector=initial_detector, use_webcam=False)
+    drone_manager = DroneManager(detector=initial_detector, use_webcam=True)
 except Exception as e:
     print(f"[System Init Error] Failed to initialize Detector or Manager: {e}")
     exit(1)
